@@ -14,10 +14,10 @@ import (
 )
 
 func main() {
-	path := fetchMigrationPath()
+	migrationPath, envPath := fetchPaths()
 
-	sourceURL := fmt.Sprintf("file://%s", path)
-	databaseURL := fetchDatabaseURL("POSTGRES_URL")
+	sourceURL := fmt.Sprintf("file://%s", migrationPath)
+	databaseURL := fetchDatabaseURL(envPath, "POSTGRES_URL")
 
 	m, err := migrate.New(sourceURL, databaseURL)
 	if err != nil {
@@ -26,28 +26,26 @@ func main() {
 
 	if err := m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
-			log.Printf("no new migrations for %s", path)
+			log.Printf("no new migrations for %s", migrationPath)
 			return
 		}
 		panic(err)
 	}
 
-	log.Printf("successful migration for %s", path)
+	log.Printf("successful migration for %s", migrationPath)
 }
 
-func fetchMigrationPath() string {
-	var path string
+func fetchPaths() (string, string) {
+	var configPath, envPath string
 
-	flag.StringVar(&path, "path", "", "path to the migrations")
+	flag.StringVar(&configPath, "path", "", "path to migrations")
+	flag.StringVar(&envPath, "env", "", "path to env file")
 	flag.Parse()
 
-	return path
+	return configPath, envPath
 }
 
-func fetchDatabaseURL(env string) string {
-	if err := godotenv.Load(); err != nil {
-		panic(err)
-	}
-
+func fetchDatabaseURL(envPath, env string) string {
+	godotenv.Load(envPath)
 	return os.Getenv(env)
 }
