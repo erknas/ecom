@@ -1,0 +1,19 @@
+env: prod
+token_ttl: 1h
+http_server:
+  addr: ${ADDR}
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 30s
+postgres:
+  user: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+  database: ${POSTGRES_DB}
+  host: ${POSTGRES_HOST}
+  port: ${POSTGRES_PORT}
+  ssl_mode: disable
+  max_conns: 30
+  min_conns: 5
+  max_conn_life_time: 1h
+  max_conn_idle_time: 30m
+  check_period: 1m

@@ -2,56 +2,86 @@ package config
 
 import (
 	"flag"
-	"fmt"
-	"os"
 	"time"
 
-	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Env         string           `yaml:"env"`
-	GRPC        GRPCServerConfig `yaml:"grpc"`
-	DatabaseURL string           `yaml:"database_url"`
-	Postgres    PostgresConfig   `yaml:"postgres"`
+	Env        string           `mapstructure:"env"`
+	TokenTTL   time.Duration    `mapstructure:"token_ttl"`
+	HTTPServer HTTPServerConfig `mapstructure:"http_server"`
+	Postgres   PostgresConfig   `mapstructure:"postgres"`
 }
 
-type GRPCServerConfig struct {
-	Port    int           `yaml:"port"`
-	Timeout time.Duration `yaml:"timeout"`
+type HTTPServerConfig struct {
+	Addr         string        `mapstructure:"addr"`
+	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
 }
 
 type PostgresConfig struct {
-	MaxConns        int32         `yaml:"max_conns"`
-	MinConns        int32         `yaml:"min_conns"`
-	MaxConnLifeTime time.Duration `yaml:"max_conn_life_time"`
-	MaxConnIdleTime time.Duration `yaml:"max_conn_idle_time"`
-	CheckPeriod     time.Duration `yaml:"check_period"`
+	User            string        `mapstructure:"user"`
+	Password        string        `mapstructure:"password"`
+	Database        string        `mapstructure:"database"`
+	Host            string        `mapstructure:"host"`
+	Port            string        `mapstructure:"port"`
+	SSLMode         string        `mapstructure:"ssl_mode"`
+	MaxConns        int32         `mapstructure:"max_conns"`
+	MinConns        int32         `mapstructure:"min_conns"`
+	MaxConnLifeTime time.Duration `mapstructure:"max_conn_life_time"`
+	MaxConnIdleTime time.Duration `mapstructure:"max_conn_idle_time"`
+	CheckPeriod     time.Duration `mapstructure:"check_period"`
 }
 
 func MustLoad() *Config {
-	path := fetchConfigPath()
-	if path == "" {
+	configPath, envPath := fetchPaths()
+
+	if configPath == "" {
 		panic("config path is empty")
 	}
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		panic(fmt.Sprintf("config file does not exist %s", path))
+	if envPath == "" {
+		panic("env path is empty")
 	}
+
+	godotenv.Load(envPath)
+
+	v := viper.New()
+
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
+
+	if err := v.ReadInConfig(); err != nil {
+		panic(err)
+	}
+
+	v.AutomaticEnv()
+
+	v.BindEnv("http_server.addr", "ADDR")
+	v.BindEnv("postgres.user", "POSTGRES_USER")
+	v.BindEnv("postgres.password", "POSTGRES_PASSWORD")
+	v.BindEnv("postgres.database", "POSTGRES_DB")
+	v.BindEnv("postgres.host", "POSTGRES_HOST")
+	v.BindEnv("postgres.port", "POSTGRES_PORT")
 
 	cfg := new(Config)
 
-	if err := cleanenv.ReadConfig(path, cfg); err != nil {
+	if err := v.Unmarshal(cfg); err != nil {
 		panic(err)
 	}
 
 	return cfg
 }
 
-func fetchConfigPath() string {
-	var path string
-	flag.StringVar(&path, "config", "", "path to the config")
+func fetchPaths() (string, string) {
+	var configPath, envPath string
+
+	flag.StringVar(&configPath, "config", "", "path to config file")
+	flag.StringVar(&envPath, "env", "", "path to env file")
 	flag.Parse()
 
-	return path
+	return configPath, envPath
 }
