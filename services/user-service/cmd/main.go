@@ -2,31 +2,47 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/erknas/ecom/user-service/internal/app"
 	"github.com/erknas/ecom/user-service/internal/config"
 	"github.com/erknas/ecom/user-service/internal/logger"
-	"github.com/erknas/ecom/user-service/internal/storage/postgres"
 	"go.uber.org/zap"
 )
 
 func main() {
-	var (
-		ctx = context.Background()
-		cfg = config.MustLoad()
-		log = logger.Setup(cfg.Env)
-	)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer cancel()
 
-	log.Debug("config loaded",
-		zap.Any("cfg", cfg),
-	)
+	cfg := config.MustLoad()
 
-	storage, err := postgres.New(ctx, cfg)
-	if err != nil {
-		log.Error("failed to init storage",
-			zap.Error(err),
-		)
+	log := logger.Setup(cfg.Env)
+
+	app := app.New(ctx, cfg, log)
+
+	log.Info("starting HTTP server", zap.String("addr", cfg.HTTPServer.Addr))
+
+	go func() {
+		if err := app.HTTPServer.Start(); err != nil {
+			log.Error("start server error", zap.Error(err))
+			cancel()
+		}
+	}()
+
+	<-ctx.Done()
+
+	log.Info("shutting down app")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer shutdownCancel()
+
+	if err := app.HTTPServer.Stop(shutdownCtx); err != nil {
+		log.Error("shutdown error", zap.Error(err))
+		os.Exit(1)
 	}
 
-	fmt.Println(storage)
+	log.Info("app shutdown gracefully")
 }
