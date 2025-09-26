@@ -5,57 +5,97 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/erknas/ecom/user-service/internal/domain/models"
 	"github.com/erknas/ecom/user-service/internal/http-server/dto"
+	"github.com/erknas/ecom/user-service/internal/http-server/middleware"
 	"github.com/erknas/ecom/user-service/internal/lib/api"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
-type Service interface {
-	CreateNewUser(ctx context.Context, firstName, phoneNumber, email, password string) (int64, error)
-	GetUser(ctx context.Context, id int64) (*models.User, error)
+type UserService interface {
+	CreateNewUser(ctx context.Context, req *dto.CreateUserRequest) (*dto.CreateUserResponse, error)
+	GetUser(ctx context.Context, id int64) (*dto.User, error)
+}
+
+type AuthService interface {
+	Login(ctx context.Context, req *dto.LoginRequest) (*dto.LoginResponse, error)
+	RefreshToken(ctx context.Context, refreshToken string) (*dto.LoginResponse, error)
+}
+
+type Middleware interface {
+	WithJWTAuth(next http.HandlerFunc) http.HandlerFunc
 }
 
 type UserHandler struct {
-	svc Service
-	log *zap.Logger
+	user UserService
+	auth AuthService
+	mw   Middleware
+	log  *zap.Logger
 }
 
-func New(svc Service, log *zap.Logger) *UserHandler {
+func New(user UserService, auth AuthService, mw Middleware, log *zap.Logger) *UserHandler {
 	return &UserHandler{
-		svc: svc,
-		log: log,
+		user: user,
+		auth: auth,
+		mw:   mw,
+		log:  log,
 	}
 }
 
 func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	r.Post("/create", api.MakeHTTPFunc(h.handleRegisterUser))
+	r.Post("/login", api.MakeHTTPFunc(h.handleLogin))
+
+	r.Get("/me", h.mw.WithJWTAuth(api.MakeHTTPFunc(h.handleGetUser)))
 }
 
 func (h *UserHandler) handleRegisterUser(w http.ResponseWriter, r *http.Request) error {
-	userReq := new(dto.CreateUserRequest)
+	req := new(dto.CreateUserRequest)
 
-	if err := json.NewDecoder(r.Body).Decode(userReq); err != nil {
-		h.log.Error("decode request body error",
-			zap.Error(err),
-		)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		h.log.Error("decode request body error", zap.Error(err))
 		return err
 	}
 	defer r.Body.Close()
 
-	id, err := h.svc.CreateNewUser(r.Context(), userReq.FirstName, userReq.PhoneNumber, userReq.Email, userReq.Password)
+	resp, err := h.user.CreateNewUser(r.Context(), req)
 	if err != nil {
-		h.log.Error("create new user error",
-			zap.Error(err),
-		)
+		h.log.Error("register user error", zap.Error(err))
 		return err
 	}
 
-	userResp := dto.CreateUserResponse{
-		ID:      id,
-		Message: "user created",
+	return api.WriteJSON(w, http.StatusCreated, resp)
+}
+
+func (h *UserHandler) handleGetUser(w http.ResponseWriter, r *http.Request) error {
+	id, ok := middleware.GetIDFromContext(r.Context())
+	if !ok {
+		return api.WriteJSON(w, http.StatusUnauthorized, "not authenticated")
 	}
 
-	return api.WriteJSON(w, http.StatusCreated, userResp)
+	user, err := h.user.GetUser(r.Context(), id)
+	if err != nil {
+		h.log.Error("get user error", zap.Error(err))
+		return err
+	}
+
+	return api.WriteJSON(w, http.StatusOK, user)
+}
+
+func (h *UserHandler) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	req := new(dto.LoginRequest)
+
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		h.log.Error("decode request body error", zap.Error(err))
+		return err
+	}
+	defer r.Body.Close()
+
+	resp, err := h.auth.Login(r.Context(), req)
+	if err != nil {
+		h.log.Error("login error", zap.Error(err))
+		return err
+	}
+
+	return api.WriteJSON(w, http.StatusOK, resp)
 }
