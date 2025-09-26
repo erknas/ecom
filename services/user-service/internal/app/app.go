@@ -6,7 +6,9 @@ import (
 
 	"github.com/erknas/ecom/user-service/internal/config"
 	"github.com/erknas/ecom/user-service/internal/http-server/handlers"
+	"github.com/erknas/ecom/user-service/internal/http-server/middleware"
 	"github.com/erknas/ecom/user-service/internal/http-server/server"
+	"github.com/erknas/ecom/user-service/internal/lib/jwt"
 	"github.com/erknas/ecom/user-service/internal/service"
 	"github.com/erknas/ecom/user-service/internal/storage/postgres"
 	"go.uber.org/zap"
@@ -25,9 +27,15 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger) *App {
 		panic(err)
 	}
 
-	userService := service.New(storage, storage)
+	jwtManager := jwt.New(cfg)
 
-	userHandler := handlers.New(userService, log)
+	userService := service.NewUserService(storage, storage, log)
+
+	authService := service.NewAuthService(storage, jwtManager, jwtManager, log)
+
+	middleware := middleware.New(authService, log)
+
+	userHandler := handlers.New(userService, authService, middleware, log)
 
 	httpServer := server.New(cfg, userHandler)
 
