@@ -49,10 +49,28 @@ func (p *PostgresPool) InsertUser(ctx context.Context, user *models.User) (int64
 	return id, nil
 }
 
-func (p *PostgresPool) User(ctx context.Context, id int64) (*models.User, error) {
+func (p *PostgresPool) UserByID(ctx context.Context, id int64) (*models.User, error) {
 	query := "SELECT id, first_name, phone_number, email, password_hash, created_at FROM users WHERE id = $1"
 
 	row := p.pool.QueryRow(ctx, query, id)
+
+	user := new(models.User)
+	if err := row.Scan(&user.ID,
+		&user.FirstName,
+		&user.PhoneNumber,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (p *PostgresPool) UserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error) {
+	query := "SELECT id, first_name, phone_number, email, password_hash, created_at FROM users WHERE phone_number = $1"
+
+	row := p.pool.QueryRow(ctx, query, phoneNumber)
 
 	user := new(models.User)
 	if err := row.Scan(&user.ID,
