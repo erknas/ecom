@@ -15,12 +15,12 @@ func Setup(env string) *zap.Logger {
 		logger, _ = zap.NewDevelopment(
 			zap.AddCaller(),
 			zap.AddStacktrace(zap.ErrorLevel),
-			zap.AddStacktrace(zap.WarnLevel),
 		)
 	case envProd:
 		logger, _ = zap.NewProduction(
 			zap.AddCaller(),
 			zap.AddStacktrace(zap.WarnLevel),
+			zap.AddStacktrace(zap.ErrorLevel),
 		)
 	default:
 		logger, _ = zap.NewProduction()
