@@ -23,6 +23,8 @@ func main() {
 
 	app := app.New(ctx, cfg, log)
 
+	log.Debug("config loaded", zap.Any("cfg", cfg))
+
 	log.Info("starting HTTP server", zap.String("addr", cfg.HTTPServer.Addr))
 
 	go func() {
