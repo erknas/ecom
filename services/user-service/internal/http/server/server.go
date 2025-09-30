@@ -5,18 +5,24 @@ import (
 	"net/http"
 
 	"github.com/erknas/ecom/user-service/internal/config"
-	"github.com/erknas/ecom/user-service/internal/http-server/handlers"
+	"github.com/erknas/ecom/user-service/internal/http/handlers"
+	"github.com/erknas/ecom/user-service/internal/lib/api"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-type Server struct {
-	userHandler *handlers.UserHandler
-	srv         *http.Server
-	router      *chi.Mux
+type AuthMiddleware interface {
+	WithJWTAuth() func(next http.Handler) http.Handler
 }
 
-func New(cfg *config.Config, userHandler *handlers.UserHandler) *Server {
+type Server struct {
+	mw       AuthMiddleware
+	handlers *handlers.UserHandlers
+	srv      *http.Server
+	router   *chi.Mux
+}
+
+func New(cfg *config.Config, handlers *handlers.UserHandlers, mw AuthMiddleware) *Server {
 	router := chi.NewMux()
 
 	srv := &http.Server{
@@ -28,9 +34,10 @@ func New(cfg *config.Config, userHandler *handlers.UserHandler) *Server {
 	}
 
 	return &Server{
-		userHandler: userHandler,
-		srv:         srv,
-		router:      router,
+		mw:       mw,
+		handlers: handlers,
+		srv:      srv,
+		router:   router,
 	}
 }
 
@@ -53,6 +60,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(middleware.Recoverer)
 
 	s.router.Route("/api", func(r chi.Router) {
-		r.Route("/users", s.userHandler.RegisterRoutes)
+		r.Post("/register", api.MakeHTTPFunc(s.handlers.HandleRegister))
+		r.Post("/login", api.MakeHTTPFunc(s.handlers.HandleLogin))
+
+		r.Group(func(r chi.Router) {
+			r.Use(s.mw.WithJWTAuth())
+			r.Get("/me", api.MakeHTTPFunc(s.handlers.HandleGetUser))
+			r.Put("/me/update", api.MakeHTTPFunc(s.handlers.HandleUpdateUser))
+		})
 	})
 }

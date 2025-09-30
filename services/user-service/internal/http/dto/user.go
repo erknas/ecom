@@ -21,3 +21,10 @@ type CreateUserResponse struct {
 	ID      int64  `json:"id"`
 	Message string `json:"message"`
 }
+
+type UpdateUserRequest struct {
+	FirstName   string `json:"first_name"`
+	PhoneNumber string `json:"phone_number"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+}
