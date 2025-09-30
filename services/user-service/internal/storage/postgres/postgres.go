@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/erknas/ecom/user-service/internal/config"
 	"github.com/erknas/ecom/user-service/internal/domain/models"
@@ -83,4 +85,48 @@ func (p *PostgresPool) UserByPhoneNumber(ctx context.Context, phoneNumber string
 	}
 
 	return user, nil
+}
+
+func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.User) error {
+	var (
+		query       = "UPDATE users SET "
+		args        = []any{}
+		argsCounter = 1
+	)
+
+	if user.FirstName != "" {
+		query += fmt.Sprintf("first_name = $%d, ", argsCounter)
+		args = append(args, user.FirstName)
+		argsCounter++
+	}
+
+	if user.PhoneNumber != "" {
+		query += fmt.Sprintf("phone_number = $%d, ", argsCounter)
+		args = append(args, user.PhoneNumber)
+		argsCounter++
+	}
+
+	if user.Email != "" {
+		query += fmt.Sprintf("email = $%d, ", argsCounter)
+		args = append(args, user.Email)
+		argsCounter++
+	}
+
+	if user.PasswordHash != nil {
+		query += fmt.Sprintf("password_hash = $%d, ", argsCounter)
+		args = append(args, user.PasswordHash)
+		argsCounter++
+	}
+
+	query = strings.Trim(query, ", ")
+
+	query += fmt.Sprintf(" WHERE id = $%d", argsCounter)
+	args = append(args, id)
+
+	_, err := p.pool.Exec(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
