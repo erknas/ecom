@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/erknas/ecom/user-service/internal/domain/models"
-	"github.com/erknas/ecom/user-service/internal/http-server/dto"
+	"github.com/erknas/ecom/user-service/internal/http/dto"
 	"github.com/erknas/ecom/user-service/internal/lib/jwt"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
