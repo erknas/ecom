@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/erknas/ecom/user-service/internal/config"
-	"github.com/erknas/ecom/user-service/internal/http-server/handlers"
-	"github.com/erknas/ecom/user-service/internal/http-server/middleware"
-	"github.com/erknas/ecom/user-service/internal/http-server/server"
+	"github.com/erknas/ecom/user-service/internal/http/handlers"
+	mw "github.com/erknas/ecom/user-service/internal/http/middleware"
+	"github.com/erknas/ecom/user-service/internal/http/server"
 	"github.com/erknas/ecom/user-service/internal/lib/jwt"
 	"github.com/erknas/ecom/user-service/internal/service"
 	"github.com/erknas/ecom/user-service/internal/storage/postgres"
@@ -29,17 +29,15 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger) *App {
 
 	jwtManager := jwt.New(cfg)
 
-	userService := service.NewUserService(storage, storage, log)
+	service := service.New(storage, jwtManager, log)
 
-	authService := service.NewAuthService(storage, jwtManager, jwtManager, log)
+	handlers := handlers.New(service, log)
 
-	middleware := middleware.New(authService, log)
+	middleware := mw.New(service, log)
 
-	userHandler := handlers.New(userService, authService, middleware, log)
-
-	httpServer := server.New(cfg, userHandler)
+	server := server.New(cfg, handlers, middleware)
 
 	return &App{
-		HTTPServer: httpServer,
+		HTTPServer: server,
 	}
 }
