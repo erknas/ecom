@@ -87,45 +87,49 @@ func (p *PostgresPool) UserByPhoneNumber(ctx context.Context, phoneNumber string
 	return user, nil
 }
 
-func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.User) error {
-	var (
-		query       = "UPDATE users SET "
-		args        = []any{}
-		argsCounter = 1
-	)
+func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.UpdatedUser) error {
+	columns := []string{}
+	args := []any{}
+	argPos := 1
 
-	if user.FirstName != "" {
-		query += fmt.Sprintf("first_name = $%d, ", argsCounter)
-		args = append(args, user.FirstName)
-		argsCounter++
+	if user.FirstName != nil {
+		columns = append(columns, fmt.Sprintf("first_name = $%d", argPos))
+		args = append(args, *user.FirstName)
+		argPos++
 	}
 
-	if user.PhoneNumber != "" {
-		query += fmt.Sprintf("phone_number = $%d, ", argsCounter)
-		args = append(args, user.PhoneNumber)
-		argsCounter++
+	if user.PhoneNumber != nil {
+		columns = append(columns, fmt.Sprintf("phone_number = $%d", argPos))
+		args = append(args, *user.PhoneNumber)
+		argPos++
 	}
 
-	if user.Email != "" {
-		query += fmt.Sprintf("email = $%d, ", argsCounter)
-		args = append(args, user.Email)
-		argsCounter++
+	if user.Email != nil {
+		columns = append(columns, fmt.Sprintf("email = $%d", argPos))
+		args = append(args, *user.Email)
+		argPos++
 	}
 
 	if user.PasswordHash != nil {
-		query += fmt.Sprintf("password_hash = $%d, ", argsCounter)
+		columns = append(columns, fmt.Sprintf("password_hash = $%d", argPos))
 		args = append(args, user.PasswordHash)
-		argsCounter++
+		argPos++
 	}
 
-	query = strings.Trim(query, ", ")
+	if len(columns) == 0 {
+		return fmt.Errorf("nothing to update")
+	}
 
-	query += fmt.Sprintf(" WHERE id = $%d", argsCounter)
+	query := "UPDATE users SET " + strings.Join(columns, ", ") + fmt.Sprintf(" WHERE id = $%d", argPos)
 	args = append(args, id)
 
-	_, err := p.pool.Exec(ctx, query, args...)
+	res, err := p.pool.Exec(ctx, query, args...)
 	if err != nil {
 		return err
+	}
+
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf("user not found")
 	}
 
 	return nil

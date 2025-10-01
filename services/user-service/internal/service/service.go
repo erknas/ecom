@@ -19,7 +19,7 @@ type UserRepository interface {
 	InsertUser(ctx context.Context, user *models.User) (int64, error)
 	UserByID(ctx context.Context, id int64) (*models.User, error)
 	UserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error)
-	Update(ctx context.Context, id int64, user *models.User) error
+	Update(ctx context.Context, id int64, user *models.UpdatedUser) error
 }
 
 type JWTManager interface {
@@ -118,7 +118,7 @@ func (s *Service) ValidateAccessToken(ctx context.Context, token string) (*jwt.C
 }
 
 func (s *Service) UpdateUser(ctx context.Context, id int64, req *dto.UpdateUserRequest) error {
-	user, err := models.NewUser(req.FirstName, req.PhoneNumber, req.Email, req.Password)
+	user, err := models.NewUpdatedUser(req.FirstName, req.PhoneNumber, req.Email, req.Password)
 	if err != nil {
 		s.log.Error("new user error", zap.Error(err))
 		return err
