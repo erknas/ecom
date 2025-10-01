@@ -19,14 +19,14 @@ func main() {
 
 	cfg := config.MustLoad()
 
-	log := logger.Setup(cfg.Env)
-
-	app := app.New(ctx, cfg, log)
+	log := logger.New(cfg.Env)
+	defer log.Sync()
 
 	log.Debug("config loaded", zap.Any("cfg", cfg))
 
-	log.Info("starting HTTP server", zap.String("addr", cfg.HTTPServer.Addr))
+	app := app.New(ctx, cfg, log)
 
+	log.Info("starting HTTP server", zap.String("addr", cfg.HTTPServer.Addr))
 	go func() {
 		if err := app.HTTPServer.Start(); err != nil {
 			log.Error("start server error", zap.Error(err))
@@ -37,7 +37,6 @@ func main() {
 	<-ctx.Done()
 
 	log.Info("shutting down app")
-
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer shutdownCancel()
 
