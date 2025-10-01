@@ -17,7 +17,7 @@ func MakeHTTPFunc(fn httpFunc) http.HandlerFunc {
 		if err := fn(w, r.WithContext(ctx)); err != nil {
 			WriteJSON(w, http.StatusBadRequest, map[string]any{
 				"status_code": http.StatusBadRequest,
-				"error":       err,
+				"error":       err.Error(),
 			})
 		}
 	}
