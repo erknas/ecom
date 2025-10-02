@@ -7,7 +7,6 @@ http_server:
 jwt:
   secret: ${SECRET}
   access_token_ttl: 15m
-  refresh_token_ttl: 24h
   issuer: user-service
 postgres:
   user: ${POSTGRES_USER}

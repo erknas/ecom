@@ -23,10 +23,9 @@ type HTTPServerConfig struct {
 }
 
 type JWTConfig struct {
-	Secret          string        `mapstructure:"secret"`
-	AccessTokenTTL  time.Duration `mapstructure:"access_token_ttl"`
-	RefreshTokenTTL time.Duration `mapstructure:"refresh_token_ttl"`
-	Issuer          string        `mapstructure:"issuer"`
+	Secret         string        `mapstructure:"secret"`
+	AccessTokenTTL time.Duration `mapstructure:"access_token_ttl"`
+	Issuer         string        `mapstructure:"issuer"`
 }
 
 type PostgresConfig struct {
