@@ -33,7 +33,7 @@ func New(ctx context.Context, cfg *config.Config, log *zap.Logger) *App {
 
 	handlers := handlers.New(service, log)
 
-	middleware := mw.New(service, log)
+	middleware := mw.New(jwtManager, log)
 
 	server := server.New(cfg, handlers, middleware)
 
