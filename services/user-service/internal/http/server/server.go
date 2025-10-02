@@ -13,6 +13,7 @@ import (
 
 type AuthMiddleware interface {
 	WithJWTAuth() func(next http.Handler) http.Handler
+	WithLogger() func(next http.Handler) http.Handler
 }
 
 type Server struct {
@@ -56,16 +57,17 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) setupRoutes() {
-	s.router.Use(middleware.Logger)
+	s.router.Use(middleware.RequestID)
+	s.router.Use(s.mw.WithLogger())
 	s.router.Use(middleware.Recoverer)
 
 	s.router.Route("/api", func(r chi.Router) {
-		r.Post("/register", api.MakeHTTPFunc(s.handlers.HandleRegister))
-		r.Post("/login", api.MakeHTTPFunc(s.handlers.HandleLogin))
+		r.Post("/register", api.MakeHTTPFunc(s.handlers.HandleRegisterUser))
+		r.Post("/login", api.MakeHTTPFunc(s.handlers.HandleLoginUser))
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.mw.WithJWTAuth())
-			r.Get("/me", api.MakeHTTPFunc(s.handlers.HandleGetUser))
+			r.Get("/me", api.MakeHTTPFunc(s.handlers.HandleGetUserInformation))
 			r.Put("/me/update", api.MakeHTTPFunc(s.handlers.HandleUpdateUser))
 		})
 	})
