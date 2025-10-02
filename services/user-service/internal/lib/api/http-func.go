@@ -15,10 +15,15 @@ func MakeHTTPFunc(fn httpFunc) http.HandlerFunc {
 		defer cancel()
 
 		if err := fn(w, r.WithContext(ctx)); err != nil {
-			WriteJSON(w, http.StatusBadRequest, map[string]any{
-				"status_code": http.StatusBadRequest,
-				"error":       err.Error(),
-			})
+			if apiErr, ok := err.(APIError); ok {
+				WriteJSON(w, apiErr.StatusCode, apiErr)
+			} else {
+				errResp := map[string]any{
+					"status_code": http.StatusInternalServerError,
+					"message":     "internal server error",
+				}
+				WriteJSON(w, http.StatusInternalServerError, errResp)
+			}
 		}
 	}
 }
