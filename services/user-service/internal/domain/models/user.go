@@ -9,7 +9,6 @@ import (
 type User struct {
 	ID           int64
 	FirstName    string
-	PhoneNumber  string
 	Email        string
 	PasswordHash []byte
 	CreatedAt    time.Time
@@ -17,12 +16,11 @@ type User struct {
 
 type UpdatedUser struct {
 	FirstName    *string
-	PhoneNumber  *string
 	Email        *string
 	PasswordHash []byte
 }
 
-func NewUser(firstName, phoneNumber, email, password string) (*User, error) {
+func NewUser(firstName, email, password string) (*User, error) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -32,18 +30,16 @@ func NewUser(firstName, phoneNumber, email, password string) (*User, error) {
 
 	return &User{
 		FirstName:    firstName,
-		PhoneNumber:  phoneNumber,
 		Email:        email,
 		PasswordHash: passwordHash,
 		CreatedAt:    now,
 	}, nil
 }
 
-func NewUpdatedUser(firstName, phoneNumber, email, password *string) (*UpdatedUser, error) {
+func NewUpdatedUser(firstName, email, password *string) (*UpdatedUser, error) {
 	if password == nil {
 		return &UpdatedUser{
 			FirstName:    firstName,
-			PhoneNumber:  phoneNumber,
 			Email:        email,
 			PasswordHash: nil,
 		}, nil
@@ -56,7 +52,6 @@ func NewUpdatedUser(firstName, phoneNumber, email, password *string) (*UpdatedUs
 
 	return &UpdatedUser{
 		FirstName:    firstName,
-		PhoneNumber:  phoneNumber,
 		Email:        email,
 		PasswordHash: passwordHash,
 	}, nil
