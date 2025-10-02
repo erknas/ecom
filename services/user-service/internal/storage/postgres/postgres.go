@@ -2,12 +2,20 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/erknas/ecom/user-service/internal/config"
 	"github.com/erknas/ecom/user-service/internal/domain/models"
+	"github.com/erknas/ecom/user-service/internal/storage"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const (
+	uniqueConstraintCode = "23505"
 )
 
 type PostgresPool struct {
@@ -33,18 +41,23 @@ func New(ctx context.Context, cfg *config.Config) (*PostgresPool, error) {
 }
 
 func (p *PostgresPool) InsertUser(ctx context.Context, user *models.User) (int64, error) {
-	query := "INSERT INTO users(first_name, phone_number, email, password_hash, created_at) VALUES($1, $2, $3, $4, $5) RETURNING id"
+	query := "INSERT INTO users(first_name, email, password_hash, created_at) VALUES($1, $2, $3, $4) RETURNING id"
 
 	var id int64
 	if err := p.pool.QueryRow(
 		ctx,
 		query,
 		user.FirstName,
-		user.PhoneNumber,
 		user.Email,
 		user.PasswordHash,
 		user.CreatedAt,
 	).Scan(&id); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == uniqueConstraintCode {
+				return 0, storage.ErrUserExists
+			}
+		}
 		return 0, err
 	}
 
@@ -52,35 +65,42 @@ func (p *PostgresPool) InsertUser(ctx context.Context, user *models.User) (int64
 }
 
 func (p *PostgresPool) UserByID(ctx context.Context, id int64) (*models.User, error) {
-	query := "SELECT id, first_name, phone_number, email, password_hash, created_at FROM users WHERE id = $1"
+	query := "SELECT id, first_name, email, created_at FROM users WHERE id = $1"
 
 	row := p.pool.QueryRow(ctx, query, id)
 
 	user := new(models.User)
-	if err := row.Scan(&user.ID,
+	if err := row.Scan(
+		&user.ID,
 		&user.FirstName,
-		&user.PhoneNumber,
 		&user.Email,
-		&user.PasswordHash,
-		&user.CreatedAt); err != nil {
+		&user.CreatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, storage.ErrUserNotFound
+		}
 		return nil, err
 	}
 
 	return user, nil
 }
 
-func (p *PostgresPool) UserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error) {
-	query := "SELECT id, first_name, phone_number, email, password_hash, created_at FROM users WHERE phone_number = $1"
+func (p *PostgresPool) UserByEmail(ctx context.Context, email string) (*models.User, error) {
+	query := "SELECT id, first_name, email, password_hash, created_at FROM users WHERE email = $1"
 
-	row := p.pool.QueryRow(ctx, query, phoneNumber)
+	row := p.pool.QueryRow(ctx, query, email)
 
 	user := new(models.User)
-	if err := row.Scan(&user.ID,
+	if err := row.Scan(
+		&user.ID,
 		&user.FirstName,
-		&user.PhoneNumber,
 		&user.Email,
 		&user.PasswordHash,
-		&user.CreatedAt); err != nil {
+		&user.CreatedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, storage.ErrUserNotFound
+		}
 		return nil, err
 	}
 
@@ -98,12 +118,6 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 		argPos++
 	}
 
-	if user.PhoneNumber != nil {
-		columns = append(columns, fmt.Sprintf("phone_number = $%d", argPos))
-		args = append(args, *user.PhoneNumber)
-		argPos++
-	}
-
 	if user.Email != nil {
 		columns = append(columns, fmt.Sprintf("email = $%d", argPos))
 		args = append(args, *user.Email)
@@ -117,7 +131,7 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 	}
 
 	if len(columns) == 0 {
-		return fmt.Errorf("nothing to update")
+		return storage.ErrNoChanges
 	}
 
 	query := "UPDATE users SET " + strings.Join(columns, ", ") + fmt.Sprintf(" WHERE id = $%d", argPos)
@@ -125,11 +139,17 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 
 	res, err := p.pool.Exec(ctx, query, args...)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == uniqueConstraintCode {
+				return storage.ErrUserExists
+			}
+		}
 		return err
 	}
 
 	if res.RowsAffected() == 0 {
-		return fmt.Errorf("user not found")
+		return storage.ErrUserNotFound
 	}
 
 	return nil
