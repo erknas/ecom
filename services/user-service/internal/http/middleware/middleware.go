@@ -84,7 +84,7 @@ func (m *Middleware) WithLogger() func(next http.Handler) http.Handler {
 				entry.Info("request completed",
 					zap.Int("status", ww.Status()),
 					zap.Int("bytes", ww.BytesWritten()),
-					zap.String("duration", time.Since(start).String()),
+					zap.Duration("duration", time.Since(start)),
 				)
 			}()
 
