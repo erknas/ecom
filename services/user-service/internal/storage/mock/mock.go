@@ -23,7 +23,7 @@ func NewMockStorage() *MockStorage {
 	}
 }
 
-func (m *MockStorage) InsertUser(ctx context.Context, user *models.User) (int64, error) {
+func (m *MockStorage) Insert(ctx context.Context, user *models.User) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -41,6 +41,7 @@ func (m *MockStorage) InsertUser(ctx context.Context, user *models.User) (int64,
 	m.nextID++
 
 	userCopy := &models.User{
+		ID:           id,
 		FirstName:    user.FirstName,
 		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
@@ -69,10 +70,11 @@ func (m *MockStorage) UserByID(ctx context.Context, id int64) (*models.User, err
 	}
 
 	return &models.User{
-		ID:        id,
-		FirstName: user.FirstName,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt,
+		ID:           id,
+		FirstName:    user.FirstName,
+		Email:        user.Email,
+		PasswordHash: user.PasswordHash,
+		CreatedAt:    user.CreatedAt,
 	}, nil
 }
 
@@ -96,7 +98,7 @@ func (m *MockStorage) UserByEmail(ctx context.Context, email string) (*models.Us
 	return &models.User{
 		ID:           id,
 		FirstName:    user.FirstName,
-		Email:        user.FirstName,
+		Email:        user.Email,
 		PasswordHash: user.PasswordHash,
 		CreatedAt:    user.CreatedAt,
 	}, nil
@@ -117,20 +119,39 @@ func (m *MockStorage) Update(ctx context.Context, id int64, user *models.Updated
 		return storage.ErrUserNotFound
 	}
 
-	if user.Email != &existing.Email {
+	if user.FirstName == nil && user.Email == nil && user.PasswordHash == nil {
+		return storage.ErrNoChanges
+	}
+
+	if user.Email != nil && *user.Email != existing.Email {
 		if _, emailExists := m.emailUniqueness[*user.Email]; emailExists {
 			return storage.ErrUserExists
 		}
 	}
 
-	delete(m.emailUniqueness, existing.Email)
-	m.emailUniqueness[*user.Email] = id
-
-	m.users[id] = &models.User{
-		FirstName:    *user.FirstName,
-		Email:        *user.Email,
-		PasswordHash: user.PasswordHash,
+	updatedUser := &models.User{
+		ID:           existing.ID,
+		FirstName:    existing.FirstName,
+		Email:        existing.Email,
+		PasswordHash: existing.PasswordHash,
+		CreatedAt:    existing.CreatedAt,
 	}
+
+	if user.FirstName != nil {
+		updatedUser.FirstName = *user.FirstName
+	}
+
+	if user.Email != nil {
+		delete(m.emailUniqueness, existing.Email)
+		m.emailUniqueness[*user.Email] = id
+		updatedUser.Email = *user.Email
+	}
+
+	if user.PasswordHash != nil {
+		updatedUser.PasswordHash = user.PasswordHash
+	}
+
+	m.users[id] = updatedUser
 
 	return nil
 }

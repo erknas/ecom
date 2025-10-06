@@ -40,7 +40,7 @@ func New(ctx context.Context, cfg *config.Config) (*PostgresPool, error) {
 	return &PostgresPool{pool: pool}, nil
 }
 
-func (p *PostgresPool) InsertUser(ctx context.Context, user *models.User) (int64, error) {
+func (p *PostgresPool) Insert(ctx context.Context, user *models.User) (int64, error) {
 	query := "INSERT INTO users(first_name, email, password_hash, created_at) VALUES($1, $2, $3, $4) RETURNING id"
 
 	var id int64
@@ -137,7 +137,7 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 	query := "UPDATE users SET " + strings.Join(columns, ", ") + fmt.Sprintf(" WHERE id = $%d", argPos)
 	args = append(args, id)
 
-	res, err := p.pool.Exec(ctx, query, args...)
+	result, err := p.pool.Exec(ctx, query, args...)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -148,7 +148,7 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 		return err
 	}
 
-	if res.RowsAffected() == 0 {
+	if result.RowsAffected() == 0 {
 		return storage.ErrUserNotFound
 	}
 
