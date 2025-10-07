@@ -58,7 +58,7 @@ func (p *PostgresPool) Insert(ctx context.Context, user *models.User) (int64, er
 				return 0, storage.ErrUserExists
 			}
 		}
-		return 0, err
+		return 0, fmt.Errorf("%w: %s", storage.ErrInternalDatabase, err)
 	}
 
 	return id, nil
@@ -79,7 +79,7 @@ func (p *PostgresPool) UserByID(ctx context.Context, id int64) (*models.User, er
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, storage.ErrUserNotFound
 		}
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", storage.ErrInternalDatabase, err)
 	}
 
 	return user, nil
@@ -101,7 +101,7 @@ func (p *PostgresPool) UserByEmail(ctx context.Context, email string) (*models.U
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, storage.ErrUserNotFound
 		}
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", storage.ErrInternalDatabase, err)
 	}
 
 	return user, nil
@@ -145,7 +145,7 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 				return storage.ErrUserExists
 			}
 		}
-		return err
+		return fmt.Errorf("%w: %s", storage.ErrInternalDatabase, err)
 	}
 
 	if result.RowsAffected() == 0 {
