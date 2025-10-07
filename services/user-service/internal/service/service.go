@@ -16,7 +16,7 @@ var (
 )
 
 type UserRepository interface {
-	InsertUser(ctx context.Context, user *models.User) (int64, error)
+	Insert(ctx context.Context, user *models.User) (int64, error)
 	UserByID(ctx context.Context, id int64) (*models.User, error)
 	UserByEmail(ctx context.Context, email string) (*models.User, error)
 	Update(ctx context.Context, id int64, user *models.UpdatedUser) error
@@ -47,7 +47,7 @@ func (s *Service) CreateNewUser(ctx context.Context, req *dto.CreateUserRequest)
 		return nil, err
 	}
 
-	id, err := s.userRepo.InsertUser(ctx, user)
+	id, err := s.userRepo.Insert(ctx, user)
 	if err != nil {
 		s.log.Error("insert user failure", zap.Error(err))
 		return nil, err
@@ -96,7 +96,7 @@ func (s *Service) Login(ctx context.Context, req *dto.LoginRequest) (*dto.LoginR
 	user, err := s.userRepo.UserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			s.log.Warn("user by email failure", zap.Error(err))
+			s.log.Warn("invalid credentials", zap.Error(err))
 			return nil, ErrInvalidCredentials
 		}
 
@@ -109,7 +109,7 @@ func (s *Service) Login(ctx context.Context, req *dto.LoginRequest) (*dto.LoginR
 		return nil, ErrInvalidCredentials
 	}
 
-	token, err := s.generator.GenerateAccessToken(user.ID, req.Email)
+	token, err := s.generator.GenerateAccessToken(user.ID, user.Email)
 	if err != nil {
 		s.log.Error("generate access token failure", zap.Error(err))
 		return nil, err
