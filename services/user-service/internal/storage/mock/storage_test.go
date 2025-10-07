@@ -18,10 +18,10 @@ func TestInsert(t *testing.T) {
 		user        *models.User
 		wantErr     bool
 		expectedErr error
-		check       func(db *MockStorage, id int64)
+		check       func(t *testing.T, db *MockStorage, id int64)
 	}{
 		{
-			name:  "insert user",
+			name:  "success",
 			setup: nil,
 			user: &models.User{
 				FirstName:    "User1",
@@ -31,7 +31,7 @@ func TestInsert(t *testing.T) {
 			},
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(db *MockStorage, id int64) {
+			check: func(t *testing.T, db *MockStorage, id int64) {
 				assert.Equal(t, int64(1), id)
 
 				user, err := db.UserByID(context.Background(), id)
@@ -87,7 +87,7 @@ func TestInsert(t *testing.T) {
 			},
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(db *MockStorage, id int64) {
+			check: func(t *testing.T, db *MockStorage, id int64) {
 				assert.Equal(t, int64(2), id)
 			},
 		},
@@ -111,7 +111,7 @@ func TestInsert(t *testing.T) {
 				require.NoError(t, err)
 				assert.Greater(t, id, int64(0))
 				if tt.check != nil {
-					tt.check(db, id)
+					tt.check(t, db, id)
 				}
 			}
 		})
@@ -124,10 +124,10 @@ func TestUserByID(t *testing.T) {
 		setup       func(db *MockStorage) int64
 		wantErr     bool
 		expectedErr error
-		check       func(user *models.User)
+		check       func(t *testing.T, user *models.User)
 	}{
 		{
-			name: "get user by id",
+			name: "success",
 			setup: func(db *MockStorage) int64 {
 				user := &models.User{
 					FirstName:    "User1",
@@ -141,7 +141,7 @@ func TestUserByID(t *testing.T) {
 			},
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(user *models.User) {
+			check: func(t *testing.T, user *models.User) {
 				assert.Equal(t, int64(1), user.ID)
 				assert.Equal(t, "User1", user.FirstName)
 				assert.Equal(t, "user1@ex.com", user.Email)
@@ -173,7 +173,7 @@ func TestUserByID(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				if tt.check != nil {
-					tt.check(user)
+					tt.check(t, user)
 				}
 			}
 		})
@@ -187,7 +187,7 @@ func TestUserByEmail(t *testing.T) {
 		email       string
 		wantErr     bool
 		expectedErr error
-		check       func(user *models.User)
+		check       func(t *testing.T, user *models.User)
 	}{
 		{
 			name: "success",
@@ -204,7 +204,7 @@ func TestUserByEmail(t *testing.T) {
 			email:       "user1@ex.com",
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(user *models.User) {
+			check: func(t *testing.T, user *models.User) {
 				assert.Equal(t, int64(1), user.ID)
 				assert.Equal(t, "User1", user.FirstName)
 				assert.Equal(t, "user1@ex.com", user.Email)
@@ -244,7 +244,7 @@ func TestUserByEmail(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				if tt.check != nil {
-					tt.check(user)
+					tt.check(t, user)
 				}
 			}
 		})
@@ -258,7 +258,7 @@ func TestUpdate(t *testing.T) {
 		update      *models.UpdatedUser
 		wantErr     bool
 		expectedErr error
-		check       func(db *MockStorage, id int64)
+		check       func(t *testing.T, db *MockStorage, id int64)
 	}{
 		{
 			name: "update all fields",
@@ -279,7 +279,7 @@ func TestUpdate(t *testing.T) {
 			},
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(db *MockStorage, id int64) {
+			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
 				assert.Equal(t, "User2", user.FirstName)
@@ -304,7 +304,7 @@ func TestUpdate(t *testing.T) {
 			},
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(db *MockStorage, id int64) {
+			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
 				assert.Equal(t, "User2", user.FirstName)
@@ -329,7 +329,7 @@ func TestUpdate(t *testing.T) {
 			},
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(db *MockStorage, id int64) {
+			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
 				assert.Equal(t, "User1", user.FirstName)
@@ -354,7 +354,7 @@ func TestUpdate(t *testing.T) {
 			},
 			wantErr:     false,
 			expectedErr: nil,
-			check: func(db *MockStorage, id int64) {
+			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
 				assert.Equal(t, "User1", user.FirstName)
@@ -434,7 +434,7 @@ func TestUpdate(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				if tt.check != nil {
-					tt.check(db, userID)
+					tt.check(t, db, userID)
 				}
 			}
 		})
