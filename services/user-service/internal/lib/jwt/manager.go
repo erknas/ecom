@@ -9,13 +9,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var (
-	ErrTokenSign     = errors.New("token sign")
-	ErrTokenExpired  = errors.New("token expired")
-	ErrInvalidToken  = errors.New("invalid token")
-	ErrInvalidClaims = errors.New("invalid token claims")
-)
-
 type Manager struct {
 	secret         []byte
 	accessTokenTTL time.Duration
@@ -51,12 +44,7 @@ func (m *Manager) GenerateAccessToken(userID int64, email string) (string, error
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString(token)
-	if err != nil {
-		return "", fmt.Errorf("%w: %s", ErrTokenSign, err)
-	}
-
-	return tokenString, nil
+	return token.SignedString(m.secret)
 }
 
 func (m *Manager) ValidateAccessToken(tokenString string) (*Claims, error) {
@@ -69,14 +57,31 @@ func (m *Manager) ValidateAccessToken(tokenString string) (*Claims, error) {
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, ErrTokenExpired
+			return nil, jwt.ErrTokenExpired
 		}
-		return nil, ErrInvalidToken
+		if errors.Is(err, jwt.ErrTokenNotValidYet) {
+			return nil, jwt.ErrTokenNotValidYet
+		}
+		if errors.Is(err, jwt.ErrTokenMalformed) {
+			return nil, jwt.ErrTokenMalformed
+		}
+		if errors.Is(err, jwt.ErrTokenSignatureInvalid) {
+			return nil, jwt.ErrTokenSignatureInvalid
+		}
+		return nil, fmt.Errorf("token validation: %w", err)
 	}
 
 	claims, ok := token.Claims.(*Claims)
-	if !ok || !token.Valid || claims.Subject != "access_token" {
-		return nil, ErrInvalidClaims
+	if !ok {
+		return nil, jwt.ErrTokenInvalidClaims
+	}
+
+	if !token.Valid {
+		return nil, jwt.ErrTokenInvalidClaims
+	}
+
+	if claims.Subject != "access_token" {
+		return nil, jwt.ErrTokenInvalidClaims
 	}
 
 	return claims, nil
