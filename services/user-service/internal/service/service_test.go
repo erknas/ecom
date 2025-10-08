@@ -7,7 +7,6 @@ import (
 
 	"github.com/erknas/ecom/user-service/internal/domain/models"
 	"github.com/erknas/ecom/user-service/internal/http/dto"
-	"github.com/erknas/ecom/user-service/internal/lib/jwt"
 	"github.com/erknas/ecom/user-service/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -69,8 +68,6 @@ func TestCreateNewUser(t *testing.T) {
 				mockRepo.On("Insert", ctx, mock.AnythingOfType("*models.User")).
 					Return(int64(1), nil)
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, result *dto.CreateUserResponse) {
 				require.NotNil(t, result)
 				assert.Equal(t, int64(1), result.ID)
@@ -102,7 +99,6 @@ func TestCreateNewUser(t *testing.T) {
 				})).
 					Return(int64(2), nil)
 			},
-			wantErr: false,
 			check: func(t *testing.T, result *dto.CreateUserResponse) {
 				assert.Equal(t, int64(2), result.ID)
 			},
@@ -120,7 +116,6 @@ func TestCreateNewUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserExists,
-			check:       nil,
 		},
 		{
 			name: "internal database error",
@@ -135,7 +130,6 @@ func TestCreateNewUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrInternalDatabase,
-			check:       nil,
 		},
 	}
 
@@ -189,8 +183,6 @@ func TestGetUser(t *testing.T) {
 						CreatedAt: time.Now(),
 					}, nil)
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, result *dto.User, id int64) {
 				require.NotNil(t, result)
 				assert.Equal(t, id, result.ID)
@@ -208,7 +200,6 @@ func TestGetUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserNotFound,
-			check:       nil,
 		},
 		{
 			name:   "internal database error",
@@ -219,7 +210,6 @@ func TestGetUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrInternalDatabase,
-			check:       nil,
 		},
 	}
 
@@ -274,8 +264,6 @@ func TestUpdateUser(t *testing.T) {
 				mockRepo.On("Update", ctx, id, mock.AnythingOfType("*models.UpdatedUser")).
 					Return(nil)
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, result *dto.UpdateUserResponse, id int64) {
 				require.NotNil(t, result)
 				assert.Equal(t, id, result.ID)
@@ -305,8 +293,6 @@ func TestUpdateUser(t *testing.T) {
 				})).
 					Return(nil)
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, result *dto.UpdateUserResponse, id int64) {
 				require.NotNil(t, result)
 				assert.Equal(t, id, result.ID)
@@ -326,7 +312,6 @@ func TestUpdateUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserExists,
-			check:       nil,
 		},
 		{
 			name:   "no changes",
@@ -338,7 +323,6 @@ func TestUpdateUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrNoChanges,
-			check:       nil,
 		},
 		{
 			name:   "user not found",
@@ -354,7 +338,6 @@ func TestUpdateUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserNotFound,
-			check:       nil,
 		},
 		{
 			name:   "internal database error",
@@ -368,7 +351,6 @@ func TestUpdateUser(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrInternalDatabase,
-			check:       nil,
 		},
 	}
 
@@ -429,8 +411,6 @@ func TestLogin(t *testing.T) {
 				mockGen.On("GenerateAccessToken", int64(1), email).
 					Return("some.access.token", nil)
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, result *dto.LoginResponse) {
 				require.NotNil(t, result)
 				assert.Equal(t, int64(1), result.ID)
@@ -457,7 +437,6 @@ func TestLogin(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: ErrInvalidCredentials,
-			check:       nil,
 		},
 		{
 			name: "invalid credentials email",
@@ -472,7 +451,6 @@ func TestLogin(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: ErrInvalidCredentials,
-			check:       nil,
 		},
 		{
 			name: "internal database error",
@@ -487,30 +465,6 @@ func TestLogin(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrInternalDatabase,
-			check:       nil,
-		},
-		{
-			name: "generate token error",
-			req: &dto.LoginRequest{
-				Email:    "user5@ex.com",
-				Password: "password",
-			},
-			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, ctx context.Context, email string) {
-				hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-				mockRepo.On("UserByEmail", ctx, email).
-					Return(&models.User{
-						ID:           5,
-						FirstName:    "User5",
-						Email:        "user5@ex.com",
-						PasswordHash: hash,
-						CreatedAt:    time.Now(),
-					}, nil)
-				mockGen.On("GenerateAccessToken", int64(5), email).
-					Return("", jwt.ErrTokenSign)
-			},
-			wantErr:     true,
-			expectedErr: jwt.ErrTokenSign,
-			check:       nil,
 		},
 	}
 

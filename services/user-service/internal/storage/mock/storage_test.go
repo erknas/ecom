@@ -21,16 +21,13 @@ func TestInsert(t *testing.T) {
 		check       func(t *testing.T, db *MockStorage, id int64)
 	}{
 		{
-			name:  "success",
-			setup: nil,
+			name: "success",
 			user: &models.User{
 				FirstName:    "User1",
 				Email:        "user1@ex.com",
 				PasswordHash: []byte("password"),
 				CreatedAt:    time.Now(),
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, db *MockStorage, id int64) {
 				assert.Equal(t, int64(1), id)
 
@@ -64,7 +61,6 @@ func TestInsert(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserExists,
-			check:       nil,
 		},
 		{
 			name: "generate unique user id",
@@ -85,8 +81,6 @@ func TestInsert(t *testing.T) {
 				PasswordHash: []byte("password"),
 				CreatedAt:    time.Now(),
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, db *MockStorage, id int64) {
 				assert.Equal(t, int64(2), id)
 			},
@@ -139,8 +133,6 @@ func TestUserByID(t *testing.T) {
 				require.NoError(t, err)
 				return id
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, user *models.User) {
 				assert.Equal(t, int64(1), user.ID)
 				assert.Equal(t, "User1", user.FirstName)
@@ -156,7 +148,6 @@ func TestUserByID(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserNotFound,
-			check:       nil,
 		},
 	}
 
@@ -201,9 +192,7 @@ func TestUserByEmail(t *testing.T) {
 				_, err := db.Insert(context.Background(), user)
 				require.NoError(t, err)
 			},
-			email:       "user1@ex.com",
-			wantErr:     false,
-			expectedErr: nil,
+			email: "user1@ex.com",
 			check: func(t *testing.T, user *models.User) {
 				assert.Equal(t, int64(1), user.ID)
 				assert.Equal(t, "User1", user.FirstName)
@@ -227,7 +216,6 @@ func TestUserByEmail(t *testing.T) {
 			email:       "user1@ex.com",
 			wantErr:     true,
 			expectedErr: storage.ErrUserNotFound,
-			check:       nil,
 		},
 	}
 
@@ -277,8 +265,6 @@ func TestUpdate(t *testing.T) {
 				Email:        strPtr("user2@ex.com"),
 				PasswordHash: []byte("newpassword"),
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
@@ -302,8 +288,6 @@ func TestUpdate(t *testing.T) {
 			update: &models.UpdatedUser{
 				FirstName: strPtr("User2"),
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
@@ -327,8 +311,6 @@ func TestUpdate(t *testing.T) {
 			update: &models.UpdatedUser{
 				Email: strPtr("user2@ex.com"),
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
@@ -352,8 +334,6 @@ func TestUpdate(t *testing.T) {
 			update: &models.UpdatedUser{
 				PasswordHash: []byte("newpassword"),
 			},
-			wantErr:     false,
-			expectedErr: nil,
 			check: func(t *testing.T, db *MockStorage, id int64) {
 				user, err := db.UserByID(context.Background(), id)
 				require.NoError(t, err)
@@ -377,7 +357,6 @@ func TestUpdate(t *testing.T) {
 			update:      &models.UpdatedUser{},
 			wantErr:     true,
 			expectedErr: storage.ErrNoChanges,
-			check:       nil,
 		},
 		{
 			name: "duplicate email",
@@ -403,7 +382,6 @@ func TestUpdate(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserExists,
-			check:       nil,
 		},
 		{
 			name: "user not found",
@@ -417,7 +395,6 @@ func TestUpdate(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserNotFound,
-			check:       nil,
 		},
 	}
 
