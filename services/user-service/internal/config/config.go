@@ -53,14 +53,16 @@ func MustLoad() *Config {
 		panic("env path is empty")
 	}
 
-	godotenv.Load(envPath)
-
 	v := viper.New()
 
 	v.SetConfigFile(configPath)
 	v.SetConfigType("yaml")
 
 	if err := v.ReadInConfig(); err != nil {
+		panic(err)
+	}
+
+	if err := godotenv.Load(envPath); err != nil {
 		panic(err)
 	}
 
