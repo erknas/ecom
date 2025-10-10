@@ -34,9 +34,8 @@ func New(svc UserService, log *zap.Logger) *UserHandlers {
 }
 
 func (h *UserHandlers) HandleRegisterUser(w http.ResponseWriter, r *http.Request) error {
-	req := new(dto.CreateUserRequest)
-
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+	var req dto.CreateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body", zap.Error(err))
 		return api.InvalidRequestBody()
 	}
@@ -46,14 +45,13 @@ func (h *UserHandlers) HandleRegisterUser(w http.ResponseWriter, r *http.Request
 		return api.UnprocessableData(errors)
 	}
 
-	resp, err := h.svc.CreateNewUser(r.Context(), req)
+	resp, err := h.svc.CreateNewUser(r.Context(), &req)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
 			h.log.Warn("create new user failure", zap.Error(err))
 			return api.UserAlreadyRegistered()
 		}
-
-		return err
+		return api.InternalError()
 	}
 
 	return api.WriteJSON(w, http.StatusCreated, resp)
@@ -72,8 +70,7 @@ func (h *UserHandlers) HandleGetUserInformation(w http.ResponseWriter, r *http.R
 			h.log.Warn("get user failure", zap.Error(err), zap.Int64("user_id", id))
 			return api.UserNotFound()
 		}
-
-		return err
+		return api.InternalError()
 	}
 
 	return api.WriteJSON(w, http.StatusOK, resp)
@@ -86,9 +83,8 @@ func (h *UserHandlers) HandleUpdateUser(w http.ResponseWriter, r *http.Request) 
 		return api.NotAuthorized()
 	}
 
-	req := new(dto.UpdateUserRequest)
-
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+	var req dto.UpdateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body", zap.Error(err))
 		return api.InvalidRequestBody()
 	}
@@ -98,44 +94,37 @@ func (h *UserHandlers) HandleUpdateUser(w http.ResponseWriter, r *http.Request) 
 		return api.UnprocessableData(errors)
 	}
 
-	resp, err := h.svc.UpdateUser(r.Context(), id, req)
+	resp, err := h.svc.UpdateUser(r.Context(), id, &req)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
 			h.log.Warn("update user failure", zap.Error(err), zap.Int64("user_id", id))
 			return api.UserAlreadyRegistered()
 		}
-		if errors.Is(err, storage.ErrUserNotFound) {
-			h.log.Warn("update user failure", zap.Error(err), zap.Int64("user_id", id))
-			return api.UserNotFound()
-		}
-		if errors.Is(err, storage.ErrNoChanges) {
-			h.log.Warn("update user failure", zap.Error(err), zap.Int64("user_id", id))
-			return api.NothingToUpdate()
-		}
-
-		return err
+		return api.InternalError()
 	}
 
 	return api.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (h *UserHandlers) HandleLoginUser(w http.ResponseWriter, r *http.Request) error {
-	req := new(dto.LoginRequest)
-
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+	var req dto.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.Warn("invalid request body", zap.Error(err))
 		return api.InvalidRequestBody()
 	}
 	defer r.Body.Close()
 
-	resp, err := h.svc.Login(r.Context(), req)
+	if errors := req.Validate(); len(errors) > 0 {
+		return api.UnprocessableData(errors)
+	}
+
+	resp, err := h.svc.Login(r.Context(), &req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
 			h.log.Warn("login failure", zap.Error(err))
 			return api.InvalidCredentials()
 		}
-
-		return err
+		return api.InternalError()
 	}
 
 	return api.WriteJSON(w, http.StatusOK, resp)
