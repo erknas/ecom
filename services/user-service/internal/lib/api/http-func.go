@@ -20,7 +20,7 @@ func MakeHTTPFunc(fn httpFunc) http.HandlerFunc {
 			} else {
 				errResp := map[string]any{
 					"status_code": http.StatusInternalServerError,
-					"message":     "internal server error",
+					"message":     "unexpected error",
 				}
 				WriteJSON(w, http.StatusInternalServerError, errResp)
 			}
