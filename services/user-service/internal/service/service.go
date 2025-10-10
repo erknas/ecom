@@ -11,10 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-)
-
 type UserRepository interface {
 	Insert(ctx context.Context, user *models.User) (int64, error)
 	UserByID(ctx context.Context, id int64) (*models.User, error)
@@ -78,7 +74,7 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, req *dto.UpdateUserR
 	user, err := models.NewUpdatedUser(req.FirstName, req.Email, req.Password)
 	if err != nil {
 		s.log.Error("new updated user failure", zap.Error(err))
-		return nil, err
+		return nil, ErrGeneratePasswordHash
 	}
 
 	if err := s.userRepo.Update(ctx, id, user); err != nil {
