@@ -57,6 +57,11 @@ func (req CreateUserRequest) Validate() map[string]string {
 func (req UpdateUserRequest) Validate() map[string]string {
 	errors := make(map[string]string)
 
+	if req.FirstName == nil && req.Email == nil && req.Password == nil {
+		errors["empty_fields"] = "nothing to update"
+		return errors
+	}
+
 	if req.FirstName != nil {
 		if errMsg := validateFirstName(*req.FirstName); errMsg != "" {
 			errors["first_name"] = errMsg
