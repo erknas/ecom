@@ -32,6 +32,10 @@ func UnprocessableData(errors map[string]string) APIError {
 	}
 }
 
+func InternalError() APIError {
+	return NewAPIError(http.StatusInternalServerError, fmt.Errorf("unexpected error"))
+}
+
 func NotAuthorized() APIError {
 	return NewAPIError(http.StatusUnauthorized, fmt.Errorf("not authorized"))
 }
