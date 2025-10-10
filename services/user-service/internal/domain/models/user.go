@@ -39,9 +39,8 @@ func NewUser(firstName, email, password string) (*User, error) {
 func NewUpdatedUser(firstName, email, password *string) (*UpdatedUser, error) {
 	if password == nil {
 		return &UpdatedUser{
-			FirstName:    firstName,
-			Email:        email,
-			PasswordHash: nil,
+			FirstName: firstName,
+			Email:     email,
 		}, nil
 	}
 
