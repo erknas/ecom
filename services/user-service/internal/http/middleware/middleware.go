@@ -59,7 +59,7 @@ func (m *Middleware) WithJWTAuth() func(next http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
+			ctx := SetIDInContext(r.Context(), claims.UserID)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -96,6 +96,10 @@ func (m *Middleware) WithLogger() func(next http.Handler) http.Handler {
 func GetIDFromContext(ctx context.Context) (int64, bool) {
 	id, ok := ctx.Value(UserIDKey).(int64)
 	return id, ok
+}
+
+func SetIDInContext(ctx context.Context, userID int64) context.Context {
+	return context.WithValue(ctx, UserIDKey, userID)
 }
 
 func permissionDenied(w http.ResponseWriter) {
