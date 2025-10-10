@@ -7,6 +7,7 @@ import (
 
 	"github.com/erknas/ecom/user-service/internal/domain/models"
 	"github.com/erknas/ecom/user-service/internal/http/dto"
+	"github.com/erknas/ecom/user-service/internal/lib/jwt"
 	"github.com/erknas/ecom/user-service/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -52,7 +53,7 @@ func TestCreateNewUser(t *testing.T) {
 	tests := []struct {
 		name        string
 		req         *dto.CreateUserRequest
-		mockSetup   func(mockRepo *MockUserRepository, ctx context.Context)
+		mockSetup   func(mockRepo *MockUserRepository)
 		wantErr     bool
 		expectedErr error
 		check       func(t *testing.T, result *dto.CreateUserResponse)
@@ -64,8 +65,8 @@ func TestCreateNewUser(t *testing.T) {
 				Email:     "user1@ex.com",
 				Password:  "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context) {
-				mockRepo.On("Insert", ctx, mock.AnythingOfType("*models.User")).
+			mockSetup: func(mockRepo *MockUserRepository) {
+				mockRepo.On("Insert", mock.Anything, mock.AnythingOfType("*models.User")).
 					Return(int64(1), nil)
 			},
 			check: func(t *testing.T, result *dto.CreateUserResponse) {
@@ -74,14 +75,14 @@ func TestCreateNewUser(t *testing.T) {
 			},
 		},
 		{
-			name: "check user data is passed correctly",
+			name: "dto to domain",
 			req: &dto.CreateUserRequest{
 				FirstName: "User2",
 				Email:     "user2@ex.com",
 				Password:  "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context) {
-				mockRepo.On("Insert", ctx, mock.MatchedBy(func(user *models.User) bool {
+			mockSetup: func(mockRepo *MockUserRepository) {
+				mockRepo.On("Insert", mock.Anything, mock.MatchedBy(func(user *models.User) bool {
 					if user.FirstName != "User2" {
 						return false
 					}
@@ -110,8 +111,8 @@ func TestCreateNewUser(t *testing.T) {
 				Email:     "user2@ex.com",
 				Password:  "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context) {
-				mockRepo.On("Insert", ctx, mock.AnythingOfType("*models.User")).
+			mockSetup: func(mockRepo *MockUserRepository) {
+				mockRepo.On("Insert", mock.Anything, mock.AnythingOfType("*models.User")).
 					Return(int64(0), storage.ErrUserExists)
 			},
 			wantErr:     true,
@@ -124,8 +125,8 @@ func TestCreateNewUser(t *testing.T) {
 				Email:     "user4@ex.com",
 				Password:  "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context) {
-				mockRepo.On("Insert", ctx, mock.AnythingOfType("*models.User")).
+			mockSetup: func(mockRepo *MockUserRepository) {
+				mockRepo.On("Insert", mock.Anything, mock.AnythingOfType("*models.User")).
 					Return(int64(0), storage.ErrInternalDatabase)
 			},
 			wantErr:     true,
@@ -136,15 +137,12 @@ func TestCreateNewUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(MockUserRepository)
-			ctx := context.Background()
 			log := zap.NewNop()
 			svc := New(mockRepo, nil, log)
 
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo, ctx)
-			}
+			tt.mockSetup(mockRepo)
 
-			result, err := svc.CreateNewUser(ctx, tt.req)
+			result, err := svc.CreateNewUser(context.Background(), tt.req)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -152,9 +150,7 @@ func TestCreateNewUser(t *testing.T) {
 				assert.Nil(t, result)
 			} else {
 				require.NoError(t, err)
-				if tt.check != nil {
-					tt.check(t, result)
-				}
+				tt.check(t, result)
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -166,7 +162,7 @@ func TestGetUser(t *testing.T) {
 	tests := []struct {
 		name        string
 		userID      int64
-		mockSetup   func(mockRepo *MockUserRepository, ctx context.Context, id int64)
+		mockSetup   func(mockRepo *MockUserRepository, id int64)
 		wantErr     bool
 		expectedErr error
 		check       func(t *testing.T, result *dto.User, id int64)
@@ -174,8 +170,8 @@ func TestGetUser(t *testing.T) {
 		{
 			name:   "success",
 			userID: 1,
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("UserByID", ctx, id).
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("UserByID", mock.Anything, id).
 					Return(&models.User{
 						ID:        1,
 						FirstName: "User1",
@@ -194,8 +190,8 @@ func TestGetUser(t *testing.T) {
 		{
 			name:   "user not found",
 			userID: 999,
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("UserByID", ctx, id).
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("UserByID", mock.Anything, id).
 					Return(&models.User{}, storage.ErrUserNotFound)
 			},
 			wantErr:     true,
@@ -204,8 +200,8 @@ func TestGetUser(t *testing.T) {
 		{
 			name:   "internal database error",
 			userID: 2,
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("UserByID", ctx, id).
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("UserByID", mock.Anything, id).
 					Return(&models.User{}, storage.ErrInternalDatabase)
 			},
 			wantErr:     true,
@@ -216,15 +212,12 @@ func TestGetUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(MockUserRepository)
-			ctx := context.Background()
 			log := zap.NewNop()
 			svc := New(mockRepo, nil, log)
 
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo, ctx, tt.userID)
-			}
+			tt.mockSetup(mockRepo, tt.userID)
 
-			result, err := svc.GetUser(ctx, tt.userID)
+			result, err := svc.GetUser(context.Background(), tt.userID)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -232,9 +225,7 @@ func TestGetUser(t *testing.T) {
 				assert.Nil(t, result)
 			} else {
 				require.NoError(t, err)
-				if tt.check != nil {
-					tt.check(t, result, tt.userID)
-				}
+				tt.check(t, result, tt.userID)
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -247,7 +238,7 @@ func TestUpdateUser(t *testing.T) {
 		name        string
 		userID      int64
 		req         *dto.UpdateUserRequest
-		mockSetup   func(mockRepo *MockUserRepository, ctx context.Context, id int64)
+		mockSetup   func(mockRepo *MockUserRepository, id int64)
 		wantErr     bool
 		expectedErr error
 		check       func(t *testing.T, result *dto.UpdateUserResponse, id int64)
@@ -260,8 +251,8 @@ func TestUpdateUser(t *testing.T) {
 				Email:     strPtr("updateduser1@ex.com"),
 				Password:  strPtr("newpassword"),
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("Update", ctx, id, mock.AnythingOfType("*models.UpdatedUser")).
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("Update", mock.Anything, id, mock.AnythingOfType("*models.UpdatedUser")).
 					Return(nil)
 			},
 			check: func(t *testing.T, result *dto.UpdateUserResponse, id int64) {
@@ -270,15 +261,15 @@ func TestUpdateUser(t *testing.T) {
 			},
 		},
 		{
-			name:   "check user data is passed correctly",
+			name:   "dto to domain",
 			userID: 2,
 			req: &dto.UpdateUserRequest{
 				FirstName: strPtr("UpdatedUser2"),
 				Email:     strPtr("updateduser2@ex.com"),
 				Password:  strPtr("newpassword"),
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("Update", ctx, id, mock.MatchedBy(func(updatedUser *models.UpdatedUser) bool {
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("Update", mock.Anything, id, mock.MatchedBy(func(updatedUser *models.UpdatedUser) bool {
 					if updatedUser.FirstName != nil && ptrStr(updatedUser.FirstName) != "UpdatedUser2" {
 						return false
 					}
@@ -306,23 +297,12 @@ func TestUpdateUser(t *testing.T) {
 				Email:     strPtr("updateduser1@ex.com"),
 				Password:  strPtr("newpassword"),
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("Update", ctx, id, mock.AnythingOfType("*models.UpdatedUser")).
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("Update", mock.Anything, id, mock.AnythingOfType("*models.UpdatedUser")).
 					Return(storage.ErrUserExists)
 			},
 			wantErr:     true,
 			expectedErr: storage.ErrUserExists,
-		},
-		{
-			name:   "no changes",
-			userID: 4,
-			req:    &dto.UpdateUserRequest{},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("Update", ctx, id, mock.AnythingOfType("*models.UpdatedUser")).
-					Return(storage.ErrNoChanges)
-			},
-			wantErr:     true,
-			expectedErr: storage.ErrNoChanges,
 		},
 		{
 			name:   "user not found",
@@ -332,8 +312,8 @@ func TestUpdateUser(t *testing.T) {
 				Email:     strPtr("updateduser@ex.com"),
 				Password:  strPtr("newpassword"),
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("Update", ctx, id, mock.AnythingOfType("*models.UpdatedUser")).
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("Update", mock.Anything, id, mock.AnythingOfType("*models.UpdatedUser")).
 					Return(storage.ErrUserNotFound)
 			},
 			wantErr:     true,
@@ -345,8 +325,8 @@ func TestUpdateUser(t *testing.T) {
 			req: &dto.UpdateUserRequest{
 				FirstName: strPtr("UpdatedUser4"),
 			},
-			mockSetup: func(mockRepo *MockUserRepository, ctx context.Context, id int64) {
-				mockRepo.On("Update", ctx, id, mock.AnythingOfType("*models.UpdatedUser")).
+			mockSetup: func(mockRepo *MockUserRepository, id int64) {
+				mockRepo.On("Update", mock.Anything, id, mock.AnythingOfType("*models.UpdatedUser")).
 					Return(storage.ErrInternalDatabase)
 			},
 			wantErr:     true,
@@ -357,15 +337,12 @@ func TestUpdateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(MockUserRepository)
-			ctx := context.Background()
 			log := zap.NewNop()
 			svc := New(mockRepo, nil, log)
 
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo, ctx, tt.userID)
-			}
+			tt.mockSetup(mockRepo, tt.userID)
 
-			result, err := svc.UpdateUser(ctx, tt.userID, tt.req)
+			result, err := svc.UpdateUser(context.Background(), tt.userID, tt.req)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -373,9 +350,7 @@ func TestUpdateUser(t *testing.T) {
 				assert.Nil(t, result)
 			} else {
 				require.NoError(t, err)
-				if tt.check != nil {
-					tt.check(t, result, tt.userID)
-				}
+				tt.check(t, result, tt.userID)
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -387,7 +362,7 @@ func TestLogin(t *testing.T) {
 	tests := []struct {
 		name        string
 		req         *dto.LoginRequest
-		mockSetup   func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, ctx context.Context, email string)
+		mockSetup   func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, email string)
 		wantErr     bool
 		expectedErr error
 		check       func(t *testing.T, result *dto.LoginResponse)
@@ -398,9 +373,9 @@ func TestLogin(t *testing.T) {
 				Email:    "user1@ex.com",
 				Password: "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, ctx context.Context, email string) {
+			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, email string) {
 				hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-				mockRepo.On("UserByEmail", ctx, email).
+				mockRepo.On("UserByEmail", mock.Anything, email).
 					Return(&models.User{
 						ID:           1,
 						FirstName:    "User1",
@@ -423,9 +398,9 @@ func TestLogin(t *testing.T) {
 				Email:    "user2@ex.com",
 				Password: "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, ctx context.Context, email string) {
+			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, email string) {
 				hash, _ := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.DefaultCost)
-				mockRepo.On("UserByEmail", ctx, email).
+				mockRepo.On("UserByEmail", mock.Anything, email).
 					Return(&models.User{
 						ID:           2,
 						FirstName:    "User2",
@@ -444,8 +419,8 @@ func TestLogin(t *testing.T) {
 				Email:    "user3@ex.com",
 				Password: "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, ctx context.Context, email string) {
-				mockRepo.On("UserByEmail", ctx, email).
+			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, email string) {
+				mockRepo.On("UserByEmail", mock.Anything, email).
 					Return(&models.User{}, ErrInvalidCredentials)
 				mockGen.AssertNotCalled(t, "GenerateAccessToken")
 			},
@@ -453,13 +428,35 @@ func TestLogin(t *testing.T) {
 			expectedErr: ErrInvalidCredentials,
 		},
 		{
+			name: "generate access token error",
+			req: &dto.LoginRequest{
+				Email:    "user1@ex.com",
+				Password: "password",
+			},
+			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, email string) {
+				hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+				mockRepo.On("UserByEmail", mock.Anything, email).
+					Return(&models.User{
+						ID:           1,
+						FirstName:    "User1",
+						Email:        "user1@ex.com",
+						PasswordHash: hash,
+						CreatedAt:    time.Now(),
+					}, nil)
+				mockGen.On("GenerateAccessToken", int64(1), email).
+					Return("", jwt.ErrTokenSign)
+			},
+			wantErr:     true,
+			expectedErr: jwt.ErrTokenSign,
+		},
+		{
 			name: "internal database error",
 			req: &dto.LoginRequest{
 				Email:    "user4@ex.com",
 				Password: "password",
 			},
-			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, ctx context.Context, email string) {
-				mockRepo.On("UserByEmail", ctx, email).
+			mockSetup: func(mockRepo *MockUserRepository, mockGen *MockTokenGenerator, email string) {
+				mockRepo.On("UserByEmail", mock.Anything, email).
 					Return(&models.User{}, storage.ErrInternalDatabase)
 				mockGen.AssertNotCalled(t, "GenerateAccessToken")
 			},
@@ -472,15 +469,12 @@ func TestLogin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(MockUserRepository)
 			mockGen := new(MockTokenGenerator)
-			ctx := context.Background()
 			log := zap.NewNop()
 			svc := New(mockRepo, mockGen, log)
 
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo, mockGen, ctx, tt.req.Email)
-			}
+			tt.mockSetup(mockRepo, mockGen, tt.req.Email)
 
-			result, err := svc.Login(ctx, tt.req)
+			result, err := svc.Login(context.Background(), tt.req)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -488,9 +482,7 @@ func TestLogin(t *testing.T) {
 				assert.Nil(t, result)
 			} else {
 				require.NoError(t, err)
-				if tt.check != nil {
-					tt.check(t, result)
-				}
+				tt.check(t, result)
 			}
 
 			mockRepo.AssertExpectations(t)

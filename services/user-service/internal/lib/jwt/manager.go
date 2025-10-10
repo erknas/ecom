@@ -44,7 +44,12 @@ func (m *Manager) GenerateAccessToken(userID int64, email string) (string, error
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	return token.SignedString(m.secret)
+	tokenString, err := token.SignedString(m.secret)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s", ErrTokenSign, err)
+	}
+
+	return tokenString, nil
 }
 
 func (m *Manager) ValidateAccessToken(tokenString string) (*Claims, error) {
