@@ -127,7 +127,6 @@ func TestGenerateAccessToken(t *testing.T) {
 				_, err = manager.ValidateAccessToken(tokenString)
 				require.Error(t, err)
 				assert.ErrorIs(t, err, jwt.ErrTokenExpired)
-
 			},
 		},
 	}
@@ -138,8 +137,8 @@ func TestGenerateAccessToken(t *testing.T) {
 			manager := New(cfg)
 
 			result, err := manager.GenerateAccessToken(tt.userID, tt.email)
-
 			require.NoError(t, err)
+
 			assert.NotEmpty(t, result)
 			tt.check(t, manager, result, tt.userID, tt.email)
 		})
