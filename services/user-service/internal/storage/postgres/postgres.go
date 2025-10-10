@@ -130,14 +130,10 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 		argPos++
 	}
 
-	if len(columns) == 0 {
-		return storage.ErrNoChanges
-	}
-
 	query := "UPDATE users SET " + strings.Join(columns, ", ") + fmt.Sprintf(" WHERE id = $%d", argPos)
 	args = append(args, id)
 
-	result, err := p.pool.Exec(ctx, query, args...)
+	_, err := p.pool.Exec(ctx, query, args...)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -146,10 +142,6 @@ func (p *PostgresPool) Update(ctx context.Context, id int64, user *models.Update
 			}
 		}
 		return fmt.Errorf("%w: %s", storage.ErrInternalDatabase, err)
-	}
-
-	if result.RowsAffected() == 0 {
-		return storage.ErrUserNotFound
 	}
 
 	return nil
